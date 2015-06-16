@@ -1,0 +1,87 @@
+diff --git a/nova/api/metadata/base.py b/nova/api/metadata/base.py
+index 382378f..b5cb44d 100644
+--- a/nova/api/metadata/base.py
++++ b/nova/api/metadata/base.py
+@@ -14,6 +14,8 @@
+ #    License for the specific language governing permissions and limitations
+ #    under the License.
+ 
++# THIS FILE PATCHED BY BCPC
++
+ """Instance Metadata information."""
+ 
+ import base64
+@@ -215,7 +217,7 @@ class InstanceMetadata(object):
+         if version not in VERSIONS:
+             raise InvalidMetadataVersion(version)
+ 
+-        hostname = self._get_hostname()
++        # hostname = self._get_hostname()         # REMOVED BY BCPC
+ 
+         floating_ips = self.ip_info['floating_ips']
+         floating_ip = floating_ips and floating_ips[0] or ''
+@@ -230,7 +232,7 @@ class InstanceMetadata(object):
+             'ami-launch-index': self.instance.launch_index,
+             'ami-manifest-path': 'FIXME',
+             'instance-id': self.ec2_ids['instance-id'],
+-            'hostname': hostname,
++        #    'hostname': hostname,                  # REMOVED BY BCPC
+             'local-ipv4': fixed_ip or self.address,
+             'reservation-id': self.instance.reservation_id,
+             'security-groups': fmt_sgroups}
+@@ -250,8 +252,18 @@ class InstanceMetadata(object):
+                       'openssh-key': self.instance.key_data}}
+ 
+         if self._check_version('2007-01-19', version):
+-            meta_data['local-hostname'] = hostname
+-            meta_data['public-hostname'] = hostname
++        #    meta_data['local-hostname'] = hostname  # REMOVED BY BCPC 
++        #    meta_data['public-hostname'] = hostname # REMOVED BY BCPC
++            # START SECTION ADDED BY BCPC
++            meta_data['local-hostname'] = self._get_private_hostname()
++            if floating_ip:
++                meta_data['public-hostname'] = "%s%s%s" % ("public-" + (floating_ip.replace(".", "-")),
++                    '.' if CONF.dhcp_domain else '',
++                    CONF.dhcp_domain)
++            else:
++                meta_data['public-hostname'] = ''
++            # END SECTION ADDED BY BCPC
++
+             meta_data['public-ipv4'] = floating_ip
+ 
+         if False and self._check_version('2007-03-01', version):
+@@ -320,7 +332,8 @@ class InstanceMetadata(object):
+                  'data': keypair.public_key}
+             ]
+ 
+-        metadata['hostname'] = self._get_hostname()
++        # metadata['hostname'] = self._get_hostname() # REMOVED BY BCPC
++        metadata['hostname'] = self._get_private_hostname() # ADDED BY BCPC
+         metadata['name'] = self.instance.display_name
+         metadata['launch_index'] = self.instance.launch_index
+         metadata['availability_zone'] = self.availability_zone
+@@ -372,10 +385,20 @@ class InstanceMetadata(object):
+     def _check_os_version(self, required, requested):
+         return self._check_version(required, requested, OPENSTACK_VERSIONS)
+ 
+-    def _get_hostname(self):
+-        return "%s%s%s" % (self.instance.hostname,
+-                           '.' if CONF.dhcp_domain else '',
+-                           CONF.dhcp_domain)
++    # START SECTION REMOVED BY BCPC
++    #def _get_hostname(self):
++    #    return "%s%s%s" % (self.instance.hostname,
++    #                       '.' if CONF.dhcp_domain else '',
++    #                       CONF.dhcp_domain)
++    # END SECTION REMOVED BY BCPC
++
++    # START SECTION ADDED BY BCPC
++    def _get_private_hostname(self):
++        fixed_ips = self.ip_info['fixed_ips']
++        fixed_ip = fixed_ips and fixed_ips[0] or ''        
++        local_ipv4  = self.address or fixed_ip
++        return "ip-%s" %(local_ipv4.replace(".", "-"))
++    # END SECTION ADDED BY BCPC
+ 
+     def lookup(self, path):
+         if path == "" or path[0] != "/":

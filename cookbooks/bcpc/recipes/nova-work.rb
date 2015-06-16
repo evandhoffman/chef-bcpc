@@ -220,4 +220,51 @@ file "/usr/local/bin/nova-service-restart-wrapper" do
   action :delete
 end
 
+cookbook_file "/tmp/nova_api_metadata_base.patch" do
+    source "nova_api_metadata_base.patch"
+    owner "root"
+    mode 0644
+end 
+
+bash "patch-for-ip-hostnames-metadata" do
+    user "root"
+    code <<-EOH
+        cd /usr/lib/python2.7/dist-packages/
+        cp nova/api/metadata/base.py nova/api/metadata/base.py.prepatch
+        patch -p1 < /tmp/nova_api_metadata_base.patch
+        rv=$?
+        if [ $rv -ne 0 ]; then
+          echo "Error applying patch ($rv) - aborting!"
+          exit $rv
+        fi
+        cp /tmp/nova_api_metadata_base.patch .
+    EOH
+    not_if "grep -q 'THIS FILE PATCHED BY BCPC' /usr/lib/python2.7/dist-packages/nova/api/metadata/base.py"
+    notifies :restart, "service[nova-api]", :immediately
+end 
+
+cookbook_file "/tmp/nova_network_linux_net.patch" do
+    source "nova_network_linux_net.patch"
+    owner "root"
+    mode 0644
+end 
+
+bash "patch-for-ip-hostnames-networking" do
+    user "root"
+    code <<-EOH
+        cd /usr/lib/python2.7/dist-packages/
+        cp nova/network/linux_net.py nova/network/linux_net.py.prepatch
+        patch -p1 < /tmp/nova_network_linux_net.patch
+        rv=$?
+        if [ $rv -ne 0 ]; then
+          echo "Error applying patch ($rv) - aborting!"
+          exit $rv
+        fi
+        cp /tmp/nova_network_linux_net.patch .
+    EOH
+    not_if "grep -q 'THIS FILE PATCHED BY BCPC' /usr/lib/python2.7/dist-packages/nova/network/linux_net.py"
+    notifies :restart, "service[nova-compute]", :immediately
+    notifies :restart, "service[nova-network]", :immediately
+end 
+
 include_recipe "bcpc::cobalt"

@@ -1,0 +1,46 @@
+diff --git a/nova/network/linux_net.py b/nova/network/linux_net.py
+index 430da17..0e528a1 100644
+--- a/nova/network/linux_net.py
++++ b/nova/network/linux_net.py
+@@ -15,6 +15,8 @@
+ #    License for the specific language governing permissions and limitations
+ #    under the License.
+ 
++# THIS FILE PATCHED BY BCPC
++
+ """Implements vlans, bridges, and iptables rules using linux utilities."""
+ 
+ import calendar
+@@ -1201,6 +1203,12 @@ interface %s
+     _execute(*cmd, run_as_root=True)
+ 
+ 
++# START SECTION ADDED BY BCPC
++def _fixed_ip_to_hostname(fixedip):
++    return "ip-" + str(fixedip.address).replace(".", "-")
++# END SECTION ADDED BY BCPC
++
++
+ def _host_lease(fixedip):
+     """Return a host string for an address in leasefile format."""
+     timestamp = timeutils.utcnow()
+@@ -1208,7 +1216,8 @@ def _host_lease(fixedip):
+     return '%d %s %s %s *' % (seconds_since_epoch + CONF.dhcp_lease_time,
+                               fixedip.virtual_interface.address,
+                               fixedip.address,
+-                              fixedip.instance.hostname or '*')
++#                              fixedip.instance.hostname or '*') # REMOVED BY BCPC
++                              _fixed_ip_to_hostname(fixedip) or '*') # ADDED BY BCPC
+ 
+ 
+ def _host_dhcp_network(vif_id):
+@@ -1234,7 +1243,8 @@ def _host_dhcp(fixedip):
+                                net)
+     else:
+         return '%s,%s.%s,%s' % (fixedip.virtual_interface.address,
+-                               hostname,
++                               # hostname, # REMOVED BY BCPC
++                               _fixed_ip_to_hostname(fixedip), # ADDED BY BCPC
+                                CONF.dhcp_domain,
+                                fixedip.address)
+ 
